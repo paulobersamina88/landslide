@@ -133,10 +133,69 @@ level = st.radio(
 )
 
 mapping_df = aggregate_for_mapping(filtered_df, level)
+
 st.write(
     f"This selection contains **{int(mapping_df['affected_barangays'].sum()) if not mapping_df.empty else 0:,} affected barangays** "
     f"across **{len(mapping_df):,} locations to geocode**."
 )
+
+if level == "Municipality" and not mapping_df.empty:
+    st.subheader("Municipality landslide summary")
+
+    municipality_summary = (
+        mapping_df[
+            [
+                "region",
+                "province",
+                "municipality",
+                "affected_barangays",
+                "very_high",
+                "high",
+                "moderate",
+                "landslide_risk",
+            ]
+        ]
+        .sort_values(
+            ["affected_barangays", "province", "municipality"],
+            ascending=[False, True, True],
+        )
+        .reset_index(drop=True)
+    )
+
+    st.dataframe(
+        municipality_summary,
+        use_container_width=True,
+        height=350,
+        column_config={
+            "region": "Region",
+            "province": "Province",
+            "municipality": "Municipality",
+            "affected_barangays": "Affected Barangays",
+            "very_high": "Very High",
+            "high": "High",
+            "moderate": "Moderate",
+            "landslide_risk": "Highest Risk",
+        },
+    )
+
+    st.subheader("Top municipalities by affected barangays")
+
+    chart_df = municipality_summary.head(20).copy()
+    chart_df["Municipality"] = (
+        chart_df["municipality"] + ", " + chart_df["province"]
+    )
+
+    st.bar_chart(
+        chart_df.set_index("Municipality")["affected_barangays"],
+        height=500,
+    )
+
+    st.download_button(
+        "Download municipality summary CSV",
+        dataframe_to_csv_bytes(municipality_summary),
+        file_name=f"mgb_municipality_summary_{pdf_id}.csv",
+        mime="text/csv",
+    )
 
 st.subheader("3. Add coordinates")
 st.caption(
@@ -218,27 +277,78 @@ folium_map = folium.Map(location=center, zoom_start=6, tiles="OpenStreetMap", co
 
 cluster = MarkerCluster(name="Mapped locations").add_to(folium_map)
 heat_data = []
+
 for _, row in matched_df.iterrows():
     risk = str(row.get("landslide_risk", "Moderate"))
     count = int(row.get("affected_barangays", 1))
+
+    municipality = str(row.get("municipality", ""))
+    province = str(row.get("province", ""))
+    map_label = str(row.get("map_label", ""))
+
+    very_high = int(row.get("very_high", 0))
+    high = int(row.get("high", 0))
+    moderate = int(row.get("moderate", 0))
+
     tooltip = (
-        f"<b>{row.get('map_label', '')}</b><br>"
-        f"Affected barangays: {count}<br>"
-        f"Very High: {int(row.get('very_high', 0))}<br>"
-        f"High: {int(row.get('high', 0))}<br>"
-        f"Moderate: {int(row.get('moderate', 0))}"
+        f"<div style='font-size:13px; min-width:190px;'>"
+        f"<b>{map_label}</b><br>"
+        f"<b>Total affected barangays: {count}</b><br>"
+        f"Highest risk: {risk}<br>"
+        f"Very High: {very_high}<br>"
+        f"High: {high}<br>"
+        f"Moderate: {moderate}"
+        f"</div>"
     )
+
+    marker_radius = min(26, 7 + count ** 0.65)
+
     folium.CircleMarker(
         location=[float(row["lat"]), float(row["lon"])],
-        radius=min(18, 5 + count ** 0.5),
+        radius=marker_radius,
         color=RISK_COLORS.get(risk, "#fbc02d"),
         fill=True,
         fill_color=RISK_COLORS.get(risk, "#fbc02d"),
-        fill_opacity=0.72,
+        fill_opacity=0.78,
         weight=2,
         tooltip=folium.Tooltip(tooltip),
+        popup=folium.Popup(tooltip, max_width=300),
     ).add_to(cluster)
-    heat_data.append([float(row["lat"]), float(row["lon"]), max(1, count)])
+
+    if level == "Municipality":
+        folium.Marker(
+            location=[float(row["lat"]), float(row["lon"])],
+            icon=folium.DivIcon(
+                icon_size=(120, 24),
+                icon_anchor=(60, 12),
+                html=f"""
+                <div style="
+                    display:inline-block;
+                    transform:translate(-50%, -50%);
+                    background:rgba(255,255,255,0.90);
+                    border:2px solid {RISK_COLORS.get(risk, '#fbc02d')};
+                    border-radius:6px;
+                    padding:2px 6px;
+                    font-size:11px;
+                    font-weight:bold;
+                    color:#111;
+                    white-space:nowrap;
+                    text-align:center;
+                    box-shadow:0 1px 4px rgba(0,0,0,0.35);
+                ">
+                    {municipality}: {count}
+                </div>
+                """,
+            ),
+        ).add_to(folium_map)
+
+    heat_data.append(
+        [
+            float(row["lat"]),
+            float(row["lon"]),
+            max(1, count),
+        ]
+    )
 
 HeatMap(heat_data, name="Heat intensity", radius=24, blur=20, min_opacity=0.3).add_to(folium_map)
 folium.LayerControl(collapsed=False).add_to(folium_map)

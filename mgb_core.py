@@ -249,15 +249,36 @@ def aggregate_for_mapping(df: pd.DataFrame, level: str) -> pd.DataFrame:
 
     group_columns = ["region", "province", "municipality"]
     grouped = (
-        landslide_df.groupby(group_columns, dropna=False)
-        .agg(
-            affected_barangays=("barangay", "count"),
-            very_high=("landslide_risk", lambda values: int((values == "Very High").sum())),
-            high=("landslide_risk", lambda values: int((values == "High").sum())),
-            moderate=("landslide_risk", lambda values: int((values == "Moderate").sum())),
-        )
-        .reset_index()
+    landslide_df.groupby(group_columns, dropna=False)
+    .agg(
+        affected_barangays=("barangay", "count"),
+
+        barangay_names=(
+            "barangay",
+            lambda values: sorted(
+                {
+                    str(value).strip()
+                    for value in values
+                    if str(value).strip()
+                }
+            ),
+        ),
+
+        very_high=(
+            "landslide_risk",
+            lambda values: int((values == "Very High").sum()),
+        ),
+        high=(
+            "landslide_risk",
+            lambda values: int((values == "High").sum()),
+        ),
+        moderate=(
+            "landslide_risk",
+            lambda values: int((values == "Moderate").sum()),
+        ),
     )
+    .reset_index()
+)
     grouped["landslide_risk"] = grouped.apply(
         lambda row: "Very High"
         if row["very_high"] > 0

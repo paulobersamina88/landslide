@@ -401,13 +401,23 @@ for _, row in matched_df.iterrows():
         ]
     )
 
-if level == "Barangay" and heat_data:
+# if level == "Barangay" and heat_data:
+#     HeatMap(
+#         heat_data,
+#         name="Heat intensity",
+#         radius=24,
+#         blur=20,
+#         min_opacity=0.3,
+#     ).add_to(folium_map)
+# NEW VERSION — heatmap in both Municipality and Barangay modes
+if heat_data:
     HeatMap(
         heat_data,
         name="Heat intensity",
         radius=24,
         blur=20,
         min_opacity=0.3,
+        show=True,
     ).add_to(folium_map)
 
 folium.LayerControl(collapsed=False).add_to(folium_map)

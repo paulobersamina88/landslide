@@ -352,13 +352,13 @@ for _, row in matched_df.iterrows():
             tooltip=folium.Tooltip(tooltip),
             popup=folium.Popup(tooltip, max_width=380),
             icon=folium.DivIcon(
-                icon_size=(145, 48),
-                icon_anchor=(72, 24),
+                icon_size=(180, 64),
+                icon_anchor=(90, 32),
                 html=f"""
                 <div style="
                     display:inline-block;
                     transform:translate(-50%, -50%);
-                    width:135px;
+                    width:170px;
                     background:rgba(255,255,255,0.92);
                     border:1.5px solid {RISK_COLORS.get(risk, '#fbc02d')};
                     border-radius:5px;
@@ -366,10 +366,10 @@ for _, row in matched_df.iterrows():
                     color:#111;
                     text-align:center;
                     line-height:1.10;
-                    box-shadow:0 1px 4px rgba(0,0,0,0.30);
+                    box-shadow:0 2px 6px rgba(0,0,0,0.30);
                 ">
                     <div style="
-                        font-size:9px;
+                        font-size:12px;
                         font-weight:bold;
                         white-space:nowrap;
                         overflow:hidden;
@@ -379,12 +379,12 @@ for _, row in matched_df.iterrows():
                     </div>
 
                     <div style="
-                        margin-top:2px;
-                        font-size:6.5px;
+                        margin-top:4px;
+                        font-size:9px;
                         font-weight:normal;
                         white-space:normal;
                         overflow:hidden;
-                        max-height:24px;
+                        max-height:34px;
                     ">
                         {barangay_label}
                     </div>

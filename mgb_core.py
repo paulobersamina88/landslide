@@ -249,8 +249,8 @@ def aggregate_for_mapping(df: pd.DataFrame, level: str) -> pd.DataFrame:
 
     group_columns = ["region", "province", "municipality"]
     grouped = (
-    landslide_df.groupby(group_columns, dropna=False)
-    .agg(
+        landslide_df.groupby(group_columns, dropna=False)
+        .agg(
         affected_barangays=("barangay", "count"),
 
         barangay_names=(
@@ -276,9 +276,10 @@ def aggregate_for_mapping(df: pd.DataFrame, level: str) -> pd.DataFrame:
             "landslide_risk",
             lambda values: int((values == "Moderate").sum()),
         ),
+        )
+        .reset_index()
     )
-    .reset_index()
-)
+
     grouped["landslide_risk"] = grouped.apply(
         lambda row: "Very High"
         if row["very_high"] > 0
@@ -514,23 +515,71 @@ def dataframe_to_csv_bytes(df: pd.DataFrame) -> bytes:
     return df.to_csv(index=False).encode("utf-8")
 
 
+def _json_safe_value(value):
+    """Convert pandas, NumPy, list, and dictionary values to JSON-safe data."""
+    if isinstance(value, dict):
+        return {
+            str(key): _json_safe_value(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, (list, tuple, set)):
+        return [
+            _json_safe_value(item)
+            for item in value
+        ]
+
+    if hasattr(value, "item"):
+        try:
+            value = value.item()
+        except (ValueError, AttributeError):
+            pass
+
+    try:
+        missing = pd.isna(value)
+        if isinstance(missing, bool) and missing:
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    return value
+
+
 def dataframe_to_geojson_bytes(df: pd.DataFrame) -> bytes:
     features = []
+
     for _, row in df.dropna(subset=["lat", "lon"]).iterrows():
         properties = {
-            key: (None if pd.isna(value) else value)
+            key: _json_safe_value(value)
             for key, value in row.items()
             if key not in {"lat", "lon"}
         }
+
         features.append(
             {
                 "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [float(row["lon"]), float(row["lat"])]},
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                        float(row["lon"]),
+                        float(row["lat"]),
+                    ],
+                },
                 "properties": properties,
             }
         )
-    payload = {"type": "FeatureCollection", "features": features}
-    return json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+
+    payload = {
+        "type": "FeatureCollection",
+        "features": features,
+    }
+
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=2,
+        default=str,
+    ).encode("utf-8")
 
 
 def image_to_png_bytes(image: Image.Image) -> bytes:

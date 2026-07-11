@@ -284,6 +284,26 @@ for _, row in matched_df.iterrows():
 
     municipality = str(row.get("municipality", ""))
     province = str(row.get("province", ""))
+    barangay_names = row.get("barangay_names", [])
+
+if not isinstance(barangay_names, list):
+    barangay_names = []
+
+barangay_names = [
+    str(name).strip()
+    for name in barangay_names
+    if str(name).strip()
+]
+
+visible_barangays = barangay_names[:3]
+remaining_barangays = max(0, len(barangay_names) - len(visible_barangays))
+
+barangay_label = ", ".join(visible_barangays)
+
+if remaining_barangays > 0:
+    barangay_label += f" +{remaining_barangays} more"
+
+full_barangay_list = ", ".join(barangay_names)
     map_label = str(row.get("map_label", ""))
 
     very_high = int(row.get("very_high", 0))
@@ -291,13 +311,15 @@ for _, row in matched_df.iterrows():
     moderate = int(row.get("moderate", 0))
 
     tooltip = (
-        f"<div style='font-size:13px; min-width:190px;'>"
-        f"<b>{map_label}</b><br>"
+        f"<div style='font-size:12px; min-width:220px;'>"
+        f"<b>{municipality}, {province}</b><br>"
         f"<b>Total affected barangays: {count}</b><br>"
         f"Highest risk: {risk}<br>"
         f"Very High: {very_high}<br>"
         f"High: {high}<br>"
-        f"Moderate: {moderate}"
+        f"Moderate: {moderate}<br><br>"
+        f"<b>Affected barangays:</b><br>"
+        f"{full_barangay_list}"
         f"</div>"
     )
 
@@ -316,39 +338,51 @@ for _, row in matched_df.iterrows():
     ).add_to(cluster)
 
     if level == "Municipality":
-        folium.Marker(
-            location=[float(row["lat"]), float(row["lon"])],
-            icon=folium.DivIcon(
-                icon_size=(120, 24),
-                icon_anchor=(60, 12),
-                html=f"""
+    folium.Marker(
+        location=[float(row["lat"]), float(row["lon"])],
+        tooltip=folium.Tooltip(tooltip),
+        popup=folium.Popup(tooltip, max_width=380),
+        icon=folium.DivIcon(
+            icon_size=(155, 55),
+            icon_anchor=(77, 27),
+            html=f"""
+            <div style="
+                display:inline-block;
+                transform:translate(-50%, -50%);
+                width:145px;
+                background:rgba(255,255,255,0.92);
+                border:1.5px solid {RISK_COLORS.get(risk, '#fbc02d')};
+                border-radius:5px;
+                padding:3px 4px;
+                color:#111;
+                text-align:center;
+                line-height:1.12;
+                box-shadow:0 1px 4px rgba(0,0,0,0.30);
+            ">
                 <div style="
-                    display:inline-block;
-                    transform:translate(-50%, -50%);
-                    background:rgba(255,255,255,0.90);
-                    border:2px solid {RISK_COLORS.get(risk, '#fbc02d')};
-                    border-radius:6px;
-                    padding:2px 6px;
-                    font-size:11px;
+                    font-size:10px;
                     font-weight:bold;
-                    color:#111;
                     white-space:nowrap;
-                    text-align:center;
-                    box-shadow:0 1px 4px rgba(0,0,0,0.35);
+                    overflow:hidden;
+                    text-overflow:ellipsis;
                 ">
                     {municipality}: {count}
                 </div>
-                """,
-            ),
-        ).add_to(folium_map)
 
-    heat_data.append(
-        [
-            float(row["lat"]),
-            float(row["lon"]),
-            max(1, count),
-        ]
-    )
+                <div style="
+                    margin-top:2px;
+                    font-size:7.5px;
+                    font-weight:normal;
+                    white-space:normal;
+                    overflow:hidden;
+                    max-height:28px;
+                ">
+                    {barangay_label}
+                </div>
+            </div>
+            """,
+        ),
+    ).add_to(folium_map)
 
 HeatMap(heat_data, name="Heat intensity", radius=24, blur=20, min_opacity=0.3).add_to(folium_map)
 folium.LayerControl(collapsed=False).add_to(folium_map)

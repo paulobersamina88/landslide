@@ -1,0 +1,17 @@
+STREAMLIT COMMUNITY CLOUD DEPLOYMENT
+
+1. In GitHub, delete the existing repository files that have mismatched contents.
+2. Upload these six files directly to the ROOT of the repository:
+   app.py
+   mgb_core.py
+   requirements.txt
+   README.md
+   sample_coordinate_cache.csv
+   DEPLOY_STEPS.txt
+3. Do not upload __pycache__ or any .pyc file.
+4. In Streamlit Community Cloud, select:
+   Repository: paulobersamina88/landslide
+   Branch: main
+   Main file path: app.py
+5. Reboot the app. If the old broken environment remains cached, delete the app and redeploy it.
+6. Choose Python 3.13 in Advanced settings. The pinned requirements were tested with Python 3.13.

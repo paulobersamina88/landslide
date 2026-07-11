@@ -7,7 +7,7 @@ import folium
 import pandas as pd
 import streamlit as st
 from folium.plugins import HeatMap, MarkerCluster
-from streamlit_folium import st_folium
+from streamlit_folium import folium_static
 
 from mgb_core import (
     RISK_COLORS,
@@ -54,10 +54,14 @@ def parse_progress_callback(page: int, total: int) -> None:
     parse_progress.progress(page / total)
     parse_status.caption(f"Reading page {page} of {total}…")
 
+@st.cache_data(show_spinner=False)
+def cached_parse_mgb_pdf(pdf_bytes: bytes):
+    return parse_mgb_pdf(pdf_bytes)
+
 
 try:
     with st.spinner("Extracting the MGB table…"):
-        parsed_df, metadata = parse_mgb_pdf(pdf_bytes, progress_callback=parse_progress_callback)
+        parsed_df, metadata = cached_parse_mgb_pdf(pdf_bytes)
 except Exception as exc:
     st.error(f"The PDF could not be parsed: {exc}")
     st.stop()
@@ -238,7 +242,7 @@ for _, row in matched_df.iterrows():
 
 HeatMap(heat_data, name="Heat intensity", radius=24, blur=20, min_opacity=0.3).add_to(folium_map)
 folium.LayerControl(collapsed=False).add_to(folium_map)
-st_folium(folium_map, use_container_width=True, height=650)
+folium_static(folium_map, width=None, height=650)
 
 export_c1, export_c2 = st.columns(2)
 export_c1.download_button(
